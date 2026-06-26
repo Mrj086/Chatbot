@@ -6,12 +6,6 @@ A fully functional AI chatbot web app built with Python and Streamlit, powered b
 
 ---
 
-## 🖥️ Preview
-
-![Mishi AI Screenshot](screenshot.png)
-
----
-
 ## ✨ Features
 
 - 💬 Multi-turn conversation with full context memory

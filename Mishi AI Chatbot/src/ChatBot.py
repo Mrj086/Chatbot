@@ -1,209 +1,458 @@
 import streamlit as st
 from google import genai
+import time
 
 st.set_page_config(
     page_title="Mishi AI",
-    page_icon="🤖",
-    layout="centered"
+    page_icon="✨",
+    layout="wide",
+    initial_sidebar_state="expanded",
 )
+
+GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
 
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap');
 
-html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
-.stApp { background: #0f0f13; color: #e8e8f0; }
-#MainMenu, footer, header {visibility: hidden;}
-.block-container { padding-top: 2rem; padding-bottom: 2rem; max-width: 720px; }
-
-.mishi-header { text-align: center; padding: 2rem 0 1.5rem; }
-.mishi-header h1 { font-size: 2rem; font-weight: 600; color: #a78bfa; letter-spacing: -0.5px; margin: 0; }
-.mishi-header p { font-size: 0.9rem; color: #6b6b80; margin: 0.4rem 0 0; }
-
-.msg-user { display: flex; justify-content: flex-end; margin: 0.75rem 0; }
-.msg-ai   { display: flex; justify-content: flex-start;  margin: 0.75rem 0; }
-.bubble-user { background: #6d28d9; color: #f5f3ff; padding: 0.75rem 1.1rem; border-radius: 18px 18px 4px 18px; max-width: 80%; font-size: 0.92rem; line-height: 1.6; }
-.bubble-ai   { background: #1c1c2e; color: #e2e2f0; padding: 0.75rem 1.1rem; border-radius: 18px 18px 18px 4px; max-width: 80%; font-size: 0.92rem; line-height: 1.6; border: 1px solid #2a2a40; }
-.avatar { width: 28px; height: 28px; border-radius: 50%; background: #6d28d9; color: white; font-size: 0.75rem; display: flex; align-items: center; justify-content: center; margin-right: 8px; flex-shrink: 0; font-weight: 600; margin-top: 2px; }
-
-section[data-testid="stSidebar"] { background: #0a0a10; border-right: 1px solid #1e1e2e; }
-section[data-testid="stSidebar"] .block-container { padding-top: 1.5rem; }
-
-.stTextInput > div > div > input {
-    background: #1c1c2e !important; border: 1px solid #2a2a40 !important;
-    color: #e8e8f0 !important; border-radius: 12px !important;
-    padding: 0.6rem 1rem !important; font-family: 'Inter', sans-serif !important;
+*, html, body, [data-testid="stAppViewContainer"], [data-testid="stApp"] {
+    background: #0f0f13 !important;
+    color: #e8e8f0 !important;
+    font-family: 'Inter', sans-serif !important;
 }
-.stTextInput > div > div > input:focus { border-color: #6d28d9 !important; box-shadow: 0 0 0 2px rgba(109,40,217,0.2) !important; }
+[data-testid="stMain"] { background: #0f0f13 !important; }
+[data-testid="stHeader"] { display: none !important; }
+[data-testid="stToolbar"] { display: none !important; }
+.stDeployButton { display: none !important; }
+#MainMenu, footer { visibility: hidden; }
 
+/* ── Sidebar ── */
+[data-testid="stSidebar"] {
+    background: #0a0a10 !important;
+    border-right: 1px solid #1e1e2e !important;
+}
+[data-testid="stSidebar"] > div:first-child { padding: 0 !important; }
+
+/* ── Buttons ── */
 .stButton > button {
-    background: #6d28d9 !important; color: white !important; border: none !important;
-    border-radius: 12px !important; padding: 0.55rem 1.4rem !important;
-    font-family: 'Inter', sans-serif !important; font-weight: 500 !important; font-size: 0.9rem !important;
+    background: rgba(109,40,217,0.1) !important;
+    border: 1px solid #2a2a40 !important;
+    color: #e8e8f0 !important;
+    border-radius: 12px !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    transition: all .2s !important;
+    width: 100% !important;
+    text-align: left !important;
+    padding: 0.55rem 1rem !important;
 }
-.stButton > button:hover { background: #5b21b6 !important; }
+.stButton > button:hover {
+    background: rgba(109,40,217,0.22) !important;
+    border-color: #6d28d9 !important;
+}
 
-.empty-state { text-align: center; padding: 3rem 1rem; color: #4a4a60; }
-.empty-state .icon { font-size: 2.5rem; margin-bottom: 0.75rem; }
-.empty-state p { font-size: 0.9rem; line-height: 1.6; }
-hr { border-color: #1e1e2e; }
+/* ── Chat input — dark background, purple border ── */
+[data-testid="stChatInput"] {
+    background: #13131f !important;
+    border: 1.5px solid #6d28d9 !important;
+    border-radius: 24px !important;
+}
+[data-testid="stChatInput"] textarea {
+    background: transparent !important;
+    color: #e8e8f0 !important;
+    font-size: 15px !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+[data-testid="stChatInput"]:focus-within {
+    border-color: #a78bfa !important;
+    box-shadow: 0 0 0 3px rgba(109,40,217,0.2) !important;
+}
+[data-testid="stChatInput"] button {
+    background: linear-gradient(135deg, #6d28d9, #a78bfa) !important;
+    border-radius: 50% !important;
+    border: none !important;
+}
+[data-testid="stChatInput"] button svg { fill: white !important; }
+
+/* ── Chat messages — remove default bg ── */
+[data-testid="stChatMessage"] {
+    background: transparent !important;
+    border: none !important;
+    padding: 4px 0 !important;
+    gap: 12px !important;
+}
+
+/* ── USER messages → RIGHT side ── */
+[data-testid="stChatMessage"]:has([data-testid="chatAvatarIcon-user"]) {
+    flex-direction: row-reverse !important;
+    text-align: right !important;
+}
+[data-testid="stChatMessage"]:has([data-testid="chatAvatarIcon-user"]) > div:nth-child(2) {
+    align-items: flex-end !important;
+    display: flex !important;
+    flex-direction: column !important;
+}
+/* Fallback using data-testid stChatMessageContent */
+div:has(> [data-testid="chatAvatarIcon-user"]) {
+    flex-direction: row-reverse !important;
+}
+
+/* ── Thinking animation ── */
+@keyframes thinking {
+    0%,80%,100% { transform: scale(0.6); opacity: 0.4; }
+    40%          { transform: scale(1.0); opacity: 1.0; }
+}
+@keyframes thinkingSlideIn {
+    0%   { opacity: 0; transform: translateX(-16px) translateY(4px); }
+    100% { opacity: 1; transform: translateX(0) translateY(0); }
+}
+@keyframes thinkingPulse {
+    0%,100% { box-shadow: 0 0 0px rgba(167,139,250,0); }
+    50%      { box-shadow: 0 0 14px rgba(167,139,250,0.45); }
+}
+@keyframes thinkingTextBlink {
+    0%,100% { opacity: 1; }
+    50%      { opacity: 0.4; }
+}
+.thinking-wrap {
+    animation: thinkingSlideIn 0.4s cubic-bezier(.22,.68,0,1.2) both;
+}
+.thinking-bubble {
+    animation: thinkingPulse 2s ease-in-out infinite;
+}
+.thinking-text {
+    animation: thinkingTextBlink 1.6s ease-in-out infinite;
+}
+.thinking-dot {
+    display: inline-block;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: #a78bfa;
+    margin: 0 2px;
+    animation: thinking 1.2s infinite ease-in-out;
+}
+.thinking-dot:nth-child(2) { animation-delay: 0.2s; }
+.thinking-dot:nth-child(3) { animation-delay: 0.4s; }
+.thinking-label {
+    font-size: 12px; color: #6b6b80;
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 0 4px;
+}
+
+/* ── Streaming text animation ── */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.ai-response { animation: fadeIn 0.3s ease; }
+
+/* ── AI message bubble animation ── */
+@keyframes msgSlideIn {
+    0%   { opacity: 0; transform: translateX(-18px) translateY(6px); }
+    60%  { opacity: 1; transform: translateX(4px) translateY(0); }
+    100% { opacity: 1; transform: translateX(0) translateY(0); }
+}
+@keyframes bubblePop {
+    0%   { transform: scale(0.92); opacity: 0; }
+    60%  { transform: scale(1.03); opacity: 1; }
+    100% { transform: scale(1);    opacity: 1; }
+}
+.ai-msg-wrap   { animation: msgSlideIn 0.45s cubic-bezier(.22,.68,0,1.2) both; }
+.ai-msg-bubble { animation: bubblePop  0.4s  cubic-bezier(.22,.68,0,1.2) 0.1s both; }
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: #0f0f13; }
+::-webkit-scrollbar-thumb { background: #2a2a40; border-radius: 3px; }
+
+/* ── Code blocks ── */
+.stMarkdown pre { background: #1c1c2e !important; border: 1px solid #2a2a40 !important; border-radius: 10px !important; }
+code { color: #a78bfa !important; }
+hr { border-color: #1e1e2e !important; }
 </style>
 """, unsafe_allow_html=True)
 
 
-# ── Session state — must be before anything else ──────────
+# ── Session state ─────────────────────────────────────────
 if "messages" not in st.session_state:
     st.session_state.messages = []
-if "chat" not in st.session_state:
-    st.session_state.chat = None
-if "api_key" not in st.session_state:
-    st.session_state.api_key = ""
-if "input_value" not in st.session_state:
-    st.session_state.input_value = ""
-if "pending_message" not in st.session_state:
-    st.session_state.pending_message = ""
 if "client" not in st.session_state:
     st.session_state.client = None
+if "chat" not in st.session_state:
+    st.session_state.chat = None
+if "pending" not in st.session_state:
+    st.session_state.pending = ""
+if "recent_chats" not in st.session_state:
+    st.session_state.recent_chats = []
+
+
+# ── Init Gemini once ──────────────────────────────────────
+if st.session_state.client is None:
+    try:
+        st.session_state.client = genai.Client(api_key=GEMINI_API_KEY)
+    except Exception as e:
+        st.error(f"Failed to connect to Gemini: {e}")
+        st.stop()
+
+if st.session_state.chat is None:
+    try:
+        st.session_state.chat = st.session_state.client.chats.create(model="gemini-2.5-flash")
+    except Exception as e:
+        st.error(f"Failed to start chat: {e}")
+        st.stop()
 
 
 # ── Sidebar ───────────────────────────────────────────────
 with st.sidebar:
-    st.markdown("### 🤖 Mishi AI")
-    st.markdown("<p style='color:#6b6b80;font-size:0.82rem;'>Powered by Google Gemini</p>", unsafe_allow_html=True)
-    st.divider()
+    st.markdown("""
+    <div style="display:flex;align-items:center;gap:10px;padding:20px 16px 16px;">
+        <div style="width:34px;height:34px;border-radius:10px;
+                    background:linear-gradient(135deg,#6d28d9,#a78bfa);
+                    display:flex;align-items:center;justify-content:center;font-size:16px;
+                    box-shadow:0 0 16px rgba(109,40,217,.4);">✨</div>
+        <span style="font-family:'Space Grotesk',sans-serif;font-size:17px;font-weight:700;
+                     color:#a78bfa;">Mishi AI</span>
+    </div>
+    """, unsafe_allow_html=True)
 
-    typed_key = st.text_input(
-        "Gemini API Key",
-        type="password",
-        placeholder="Paste your API key here",
-        help="Get a free key at aistudio.google.com",
-        key="key_input"
-    )
-
-    # Save key permanently in session state whenever user types it
-    if typed_key:
-        st.session_state.api_key = typed_key
-        st.markdown("<p style='color:#4ade80;font-size:0.78rem;margin-top:4px;'>✅ API key saved</p>", unsafe_allow_html=True)
-    elif st.session_state.api_key:
-        st.markdown("<p style='color:#4ade80;font-size:0.78rem;margin-top:4px;'>✅ API key saved</p>", unsafe_allow_html=True)
-    else:
-        st.markdown("<p style='color:#f87171;font-size:0.78rem;margin-top:4px;'>⚠️ Enter your API key to start</p>", unsafe_allow_html=True)
-
-    st.divider()
-
-    if st.button("🗑️ Clear chat"):
+    if st.button("✏️  New Chat", key="new_chat"):
         st.session_state.messages = []
         st.session_state.chat = None
-        st.session_state.client = None
+        try:
+            st.session_state.chat = st.session_state.client.chats.create(model="gemini-2.5-flash")
+        except Exception as e:
+            st.error(f"Could not start new chat: {e}")
         st.rerun()
 
     st.markdown("""
-    <div style='margin-top:2rem;'>
-        <p style='color:#4a4a60;font-size:0.78rem;line-height:1.6;'>
-            Built by <strong style='color:#6d28d9;'>Miraj</strong><br>
-            CS Student · Bangladesh<br><br>
-            <a href='https://github.com/Mrj086/MishiAIchatbot'
-               style='color:#6d28d9;text-decoration:none;'>GitHub ↗</a>
-        </p>
+    <div style="font-size:11px;font-weight:600;text-transform:uppercase;
+                letter-spacing:.08em;color:#555870;padding:14px 14px 6px;">Recent</div>
+    """, unsafe_allow_html=True)
+
+    if st.session_state.recent_chats:
+        for label in reversed(st.session_state.recent_chats[-8:]):
+            short = (label[:32] + "…") if len(label) > 32 else label
+            st.markdown(f"""
+            <div style="display:flex;align-items:center;gap:8px;padding:7px 12px;
+                        border-radius:8px;font-size:13px;color:#6b6b80;">
+                <span style="font-size:11px;flex-shrink:0;">💬</span>
+                <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{short}</span>
+            </div>
+            """, unsafe_allow_html=True)
+    else:
+        st.markdown("""
+        <div style="font-size:12px;color:#3a3d50;padding:6px 14px;font-style:italic;">
+            Your chats will appear here
+        </div>
+        """, unsafe_allow_html=True)
+
+    st.markdown("<hr style='margin:14px 0'>", unsafe_allow_html=True)
+
+    st.markdown("""
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;
+                background:#13131f;border:1px solid #1e1e2e;border-radius:12px;margin:0 8px 8px;">
+        <div style="width:30px;height:30px;border-radius:50%;
+                    background:linear-gradient(135deg,#6d28d9,#a78bfa);
+                    display:flex;align-items:center;justify-content:center;
+                    font-size:13px;font-weight:700;color:white;flex-shrink:0;">M</div>
+        <div>
+            <div style="font-size:13px;font-weight:500;color:#e8e8f0;">Md.Miraj-Ul-Islam</div>
+            <div style="font-size:11px;color:#555870;">CSE Student · Bangladesh</div>
+        </div>
+    </div>
+    <div style="font-size:11px;color:#3a3d50;padding:4px 14px 8px;line-height:1.9;">
+        🔗 <a href="https://github.com/Mrj086/MishiAIchatbot" target="_blank"
+               style="color:#3b82f6;text-decoration:none;">GitHub</a> ·
+        <a href="https://www.linkedin.com/in/md-miraj-ul-islam-77b30b26a/" target="_blank"
+           style="color:#3b82f6;text-decoration:none;">LinkedIn</a>
     </div>
     """, unsafe_allow_html=True)
 
 
-# ── Header ────────────────────────────────────────────────
+# ── Top bar ───────────────────────────────────────────────
 st.markdown("""
-<div class='mishi-header'>
-    <h1>✨ Mishi AI</h1>
-    <p>Your intelligent conversation partner</p>
+<div style="display:flex;align-items:center;justify-content:space-between;
+            padding:12px 8px;border-bottom:1px solid #1e1e2e;margin-bottom:4px;">
+    <div style="display:flex;align-items:center;gap:10px;">
+        <span style="font-family:'Space Grotesk',sans-serif;font-size:17px;font-weight:700;color:#e8e8f0;">Mishi</span>
+        <span style="font-size:11px;color:#555870;background:#13131f;border:1px solid #1e1e2e;
+                     border-radius:20px;padding:2px 10px;">gemini-2.5-flash</span>
+    </div>
+    <span style="font-size:11px;color:#3a3d50;">Intelligent AI Companion</span>
 </div>
 """, unsafe_allow_html=True)
 
 
-# ── Chat history ──────────────────────────────────────────
+# ── Welcome screen ────────────────────────────────────────
 if not st.session_state.messages:
     st.markdown("""
-    <div class='empty-state'>
-        <div class='icon'>💬</div>
-        <p>Ask me anything — coding, ideas,<br>explanations, or just a chat.</p>
+    <div style="text-align:center;padding:52px 20px 24px;">
+        <div style="display:inline-flex;align-items:center;gap:12px;margin-bottom:14px;">
+            <div style="width:52px;height:52px;border-radius:16px;
+                        background:linear-gradient(135deg,#6d28d9,#a78bfa);
+                        display:flex;align-items:center;justify-content:center;
+                        font-size:26px;flex-shrink:0;
+                        box-shadow:0 0 28px rgba(109,40,217,.5);">✨</div>
+            <span style="font-family:'Space Grotesk',sans-serif;font-size:28px;font-weight:700;
+                      color:#a78bfa !important;-webkit-text-fill-color:#a78bfa !important;
+                      letter-spacing:0.3px;">Mishi AI</span>
+        </div>
+        <h1 style="font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:700;
+                   color:#e8e8f0;margin:0 0 10px;">Hi! there, I am Mishi</h1>
+        <p style="font-size:15px;color:#6b6b80;margin:0 auto 6px;max-width:440px;">
+            Your Intelligent conversation partner.
+        </p>
+        <p style="font-size:13px;color:#3a3d50;margin:0 auto 32px;max-width:440px;">
+            What do you want to know or learn today? I am here to help.
+        </p>
     </div>
     """, unsafe_allow_html=True)
 
     suggestions = [
-        "Explain machine learning simply",
-        "Help me write a Python function",
-        "What is Data Science?",
-        "Give me study tips for exams",
+        ("📊", "What is Data Science?",       "What is Data Science and why is it important in today's world?"),
+        ("✍️", "Write me a short poem",       "Write me a beautiful short poem about the stars and the night sky"),
+        ("🎵", "Make a song for me",          "Write a short uplifting song with a chorus and two verses"),
+        ("📚", "Daily routine for a student", "Make a daily routine for an ideal university student who wants to excel"),
     ]
-    cols = st.columns(2)
-    for i, s in enumerate(suggestions):
-        with cols[i % 2]:
-            if st.button(s, key=f"sug_{i}", use_container_width=True):
-                st.session_state.pending_message = s
+    c1, c2 = st.columns(2)
+    for i, (icon, title, prompt) in enumerate(suggestions):
+        with (c1 if i % 2 == 0 else c2):
+            if st.button(f"{icon}  {title}", key=f"sug_{i}", use_container_width=True):
+                st.session_state.pending = prompt
                 st.rerun()
+
 else:
+    # ── Render chat history ───────────────────────────────
     for msg in st.session_state.messages:
-        if msg["role"] == "user":
+        if msg["role"] == "assistant":
             st.markdown(f"""
-            <div class='msg-user'>
-                <div class='bubble-user'>{msg['content']}</div>
-            </div>""", unsafe_allow_html=True)
+            <div class="ai-msg-wrap" style="display:flex;align-items:flex-start;gap:10px;margin:10px 0;justify-content:flex-start;">
+                <div style="width:32px;height:32px;border-radius:50%;flex-shrink:0;
+                            background:linear-gradient(135deg,#6d28d9,#a78bfa);
+                            display:flex;align-items:center;justify-content:center;font-size:14px;">✨</div>
+                <div class="ai-msg-bubble" style="background:#1c1c2e;border:1px solid #2a2a40;border-radius:4px 18px 18px 18px;
+                            padding:12px 16px;max-width:75%;font-size:14px;line-height:1.7;color:#e8e8f0;">
+                    {msg['content']}
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
         else:
             st.markdown(f"""
-            <div class='msg-ai'>
-                <div class='avatar'>M</div>
-                <div class='bubble-ai'>{msg['content']}</div>
-            </div>""", unsafe_allow_html=True)
+            <div style="display:flex;align-items:flex-start;gap:10px;margin:10px 0;justify-content:flex-end;">
+                <div style="background:#6d28d9;border-radius:18px 4px 18px 18px;
+                            padding:12px 16px;max-width:75%;font-size:14px;line-height:1.7;color:#f5f3ff;">
+                    {msg['content']}
+                </div>
+                <div style="width:32px;height:32px;border-radius:50%;flex-shrink:0;
+                            background:linear-gradient(135deg,#4f46e5,#7c3aed);
+                            display:flex;align-items:center;justify-content:center;
+                            font-size:12px;font-weight:700;color:white;">You</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+    st.markdown("""
+    <div style="text-align:center;font-size:11px;color:#2a2a40;padding:8px 0 2px;">
+        Mishi AI can make mistakes. Please verify important information.
+    </div>
+    """, unsafe_allow_html=True)
 
 
-# ── Input — uses a form so Enter key works ────────────────
-st.divider()
-with st.form(key="chat_form", clear_on_submit=True):
-    col1, col2 = st.columns([5, 1])
-    with col1:
-        user_input = st.text_input(
-            "message",
-            label_visibility="collapsed",
-            placeholder="Message Mishi... (press Enter to send)",
-            value=st.session_state.input_value,
-            key="chat_input"
-        )
-    with col2:
-        submitted = st.form_submit_button("Send", use_container_width=True)
+# ── Handle pending suggestion ─────────────────────────────
+if st.session_state.pending:
+    prompt = st.session_state.pending
+    st.session_state.pending = ""
 
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    # Show user message immediately RIGHT
+    st.markdown(f"""
+    <div style="display:flex;align-items:flex-start;gap:10px;margin:10px 0;justify-content:flex-end;">
+        <div style="background:#6d28d9;border-radius:18px 4px 18px 18px;
+                    padding:12px 16px;max-width:75%;font-size:14px;line-height:1.7;color:#f5f3ff;">
+            {prompt}
+        </div>
+        <div style="width:32px;height:32px;border-radius:50%;flex-shrink:0;
+                    background:linear-gradient(135deg,#4f46e5,#7c3aed);
+                    display:flex;align-items:center;justify-content:center;
+                    font-size:12px;font-weight:700;color:white;">You</div>
+    </div>
+    """, unsafe_allow_html=True)
 
+    # Track recent
+    short = prompt[:40]
+    if not st.session_state.recent_chats or st.session_state.recent_chats[-1] != short:
+        st.session_state.recent_chats.append(short)
 
-# ── Handle suggestion chip clicks ─────────────────────────
-def send_message(text):
-    if not st.session_state.api_key:
-        st.error("⚠️ Please paste your Gemini API key in the sidebar first.")
-        return
-    if st.session_state.client is None:
-        try:
-            st.session_state.client = genai.Client(api_key=st.session_state.api_key)
-        except Exception as e:
-            st.error(f"Could not connect to Gemini: {e}")
-            return
-    if st.session_state.chat is None:
-        try:
-            st.session_state.chat = st.session_state.client.chats.create(model="gemini-2.5-flash")
-        except Exception as e:
-            st.error(f"Could not create chat session: {e}")
-            return
-    st.session_state.messages.append({"role": "user", "content": text})
-    with st.spinner("Mishi is thinking..."):
-        try:
-            response = st.session_state.chat.send_message(text)
-            ai_reply = response.text
-        except Exception as e:
-            ai_reply = f"Sorry, something went wrong: {e}"
-    st.session_state.messages.append({"role": "assistant", "content": ai_reply})
-
-if st.session_state.pending_message:
-    msg = st.session_state.pending_message
-    st.session_state.pending_message = ""
-    send_message(msg)
+    thinking_ph = st.empty()
+    thinking_ph.markdown("""
+    <div class="thinking-wrap" style="display:flex;align-items:center;gap:10px;margin:10px 0;justify-content:flex-start;">
+        <div style="width:32px;height:32px;border-radius:50%;flex-shrink:0;
+                    background:linear-gradient(135deg,#6d28d9,#a78bfa);
+                    display:flex;align-items:center;justify-content:center;font-size:14px;">✨</div>
+        <div class="thinking-bubble" style="background:#1c1c2e;border:1px solid #2a2a40;border-radius:4px 18px 18px 18px;
+                    padding:12px 16px;font-size:14px;color:#6b6b80;">
+            <span class="thinking-text">Mishi is thinking</span>
+            <span class="thinking-dot"></span>
+            <span class="thinking-dot"></span>
+            <span class="thinking-dot"></span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    try:
+        response = st.session_state.chat.send_message(prompt)
+        reply = response.text
+    except Exception as e:
+        reply = f"Something went wrong: {e}"
+    thinking_ph.empty()
+    st.session_state.messages.append({"role": "assistant", "content": reply})
     st.rerun()
 
-# ── Response logic ────────────────────────────────────────
-if submitted and user_input.strip():
-    send_message(user_input.strip())
+
+# ── Chat input ────────────────────────────────────────────
+user_input = st.chat_input("Ask Mishi anything…")
+
+if user_input:
+    text = user_input.strip()
+
+    st.session_state.messages.append({"role": "user", "content": text})
+    st.markdown(f"""
+    <div style="display:flex;align-items:flex-start;gap:10px;margin:10px 0;justify-content:flex-end;">
+        <div style="background:#6d28d9;border-radius:18px 4px 18px 18px;
+                    padding:12px 16px;max-width:75%;font-size:14px;line-height:1.7;color:#f5f3ff;">
+            {text}
+        </div>
+        <div style="width:32px;height:32px;border-radius:50%;flex-shrink:0;
+                    background:linear-gradient(135deg,#4f46e5,#7c3aed);
+                    display:flex;align-items:center;justify-content:center;
+                    font-size:12px;font-weight:700;color:white;">You</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Track recent
+    short = text[:40]
+    if not st.session_state.recent_chats or st.session_state.recent_chats[-1] != short:
+        st.session_state.recent_chats.append(short)
+
+    thinking_box = st.empty()
+    thinking_box.markdown("""
+    <div class="thinking-wrap" style="display:flex;align-items:center;gap:10px;margin:10px 0;justify-content:flex-start;">
+        <div style="width:32px;height:32px;border-radius:50%;flex-shrink:0;
+                    background:linear-gradient(135deg,#6d28d9,#a78bfa);
+                    display:flex;align-items:center;justify-content:center;font-size:14px;">✨</div>
+        <div class="thinking-bubble" style="background:#1c1c2e;border:1px solid #2a2a40;border-radius:4px 18px 18px 18px;
+                    padding:12px 16px;font-size:14px;color:#6b6b80;">
+            <span class="thinking-text">Mishi is thinking</span>
+            <span class="thinking-dot"></span>
+            <span class="thinking-dot"></span>
+            <span class="thinking-dot"></span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    try:
+        response = st.session_state.chat.send_message(text)
+        reply = response.text
+    except Exception as e:
+        reply = f"Something went wrong: {e}"
+    thinking_box.empty()
+    st.session_state.messages.append({"role": "assistant", "content": reply})
     st.rerun()

@@ -175,8 +175,9 @@ hr { border-color: #1e1e2e !important; }
 #sidebar-toggle-btn {
     display: none;
     position: fixed;
-    top: 12px;
-    left: 12px;
+    top: 14px;
+    right: 14px;
+    left: auto;
     z-index: 999999;
     background: linear-gradient(135deg,#6d28d9,#a78bfa);
     border: none;
@@ -199,15 +200,42 @@ hr { border-color: #1e1e2e !important; }
 }
 </style>
 
-<button id="sidebar-toggle-btn" onclick="toggleSidebar()" title="Open Menu">☰</button>
+<button id="sidebar-toggle-btn" title="Open Menu">☰</button>
 
 <script>
-function toggleSidebar() {
-    const toggleBtn = window.parent.document.querySelector('[data-testid="collapsedControl"]');
-    if (toggleBtn) {
-        toggleBtn.click();
+(function() {
+    function tryClick() {
+        // Streamlit's native collapse/expand button selectors
+        var selectors = [
+            '[data-testid="collapsedControl"]',
+            '[data-testid="baseButton-headerNoPadding"]',
+            'button[aria-label="open sidebar"]',
+            'button[aria-label="close sidebar"]',
+            'section[data-testid="stSidebar"] + div button',
+            'button[kind="header"]'
+        ];
+        var doc = window.parent ? window.parent.document : document;
+        for (var i = 0; i < selectors.length; i++) {
+            var btn = doc.querySelector(selectors[i]);
+            if (btn) { btn.click(); return true; }
+        }
+        // Fallback: directly toggle sidebar style
+        var sidebar = doc.querySelector('[data-testid="stSidebar"]');
+        if (sidebar) {
+            var curr = sidebar.style.marginLeft;
+            sidebar.style.marginLeft = (curr === '0px' || curr === '') ? '-21rem' : '0px';
+            sidebar.style.transition = 'margin-left 0.3s ease';
+            return true;
+        }
+        return false;
     }
-}
+
+    document.getElementById('sidebar-toggle-btn').addEventListener('click', function() {
+        if (!tryClick()) {
+            setTimeout(tryClick, 300);
+        }
+    });
+})();
 </script>
 """, unsafe_allow_html=True)
 

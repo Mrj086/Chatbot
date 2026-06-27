@@ -170,7 +170,45 @@ div:has(> [data-testid="chatAvatarIcon-user"]) {
 .stMarkdown pre { background: #1c1c2e !important; border: 1px solid #2a2a40 !important; border-radius: 10px !important; }
 code { color: #a78bfa !important; }
 hr { border-color: #1e1e2e !important; }
+
+/* ── Mobile sidebar toggle button ── */
+#sidebar-toggle-btn {
+    display: none;
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    z-index: 999999;
+    background: linear-gradient(135deg,#6d28d9,#a78bfa);
+    border: none;
+    border-radius: 10px;
+    width: 40px;
+    height: 40px;
+    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    box-shadow: 0 0 14px rgba(109,40,217,0.5);
+    transition: all 0.2s;
+}
+#sidebar-toggle-btn:hover {
+    transform: scale(1.08);
+    box-shadow: 0 0 20px rgba(109,40,217,0.7);
+}
+@media (max-width: 768px) {
+    #sidebar-toggle-btn { display: flex; }
+}
 </style>
+
+<button id="sidebar-toggle-btn" onclick="toggleSidebar()" title="Open Menu">☰</button>
+
+<script>
+function toggleSidebar() {
+    const toggleBtn = window.parent.document.querySelector('[data-testid="collapsedControl"]');
+    if (toggleBtn) {
+        toggleBtn.click();
+    }
+}
+</script>
 """, unsafe_allow_html=True)
 
 
@@ -257,7 +295,7 @@ with st.sidebar:
                     display:flex;align-items:center;justify-content:center;
                     font-size:13px;font-weight:700;color:white;flex-shrink:0;">M</div>
         <div>
-            <div style="font-size:13px;font-weight:500;color:#e8e8f0;">Md.Miraj-Ul-Islam</div>
+            <div style="font-size:13px;font-weight:500;color:#e8e8f0;">Miraj</div>
             <div style="font-size:11px;color:#555870;">CSE Student · Bangladesh</div>
         </div>
     </div>
